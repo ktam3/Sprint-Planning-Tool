@@ -96,8 +96,18 @@ class JiraClient:
         response = requests.get(url, headers=self.headers, params=params)
 
         if response.status_code != 200:
-            print(f"Error fetching issues: {response.status_code}")
-            print(f"JQL: {jql}")
+            print(f"❌ Error fetching issues from Jira (HTTP {response.status_code})")
+            if response.status_code == 400:
+                print("   💡 This usually means:")
+                print("      - Invalid JIRA_API_TOKEN (check your token is correct)")
+                print("      - JQL query syntax error")
+                print(f"   Query: {jql}")
+            elif response.status_code == 401:
+                print("   💡 Authentication failed - check your JIRA_API_TOKEN")
+            elif response.status_code == 403:
+                print("   💡 Access denied - your token may not have permission to access this project")
+            else:
+                print(f"   Query: {jql}")
             return []
 
         return response.json().get('issues', [])
