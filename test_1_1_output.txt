@@ -1,0 +1,42 @@
+🚀 Sprint Planning Tool - Training Kubeflow Team
+================================================================================
+
+📊 Calculating team velocity (last 3 months)...
+   Velocity: 48.3 story points/sprint
+   Completion Rate: 87%
+   Sprints Analyzed: 6
+
+📋 Fetching backlog...
+   Found 109 backlog items
+
+🔢 Detecting current sprint...
+   Current Sprint: Training Kubeflow Sprint 27
+   Planning for: Training Kubeflow Sprint 28 - 31
+
+🎯 Planning next 4 sprints...
+   ℹ️  Excluded from planning:
+      - Old/closed sprints: Training Kubeflow Sprint 22, Training Kubeflow Sprint 24, Training Kubeflow Sprint 25, Training Kubeflow Sprint 26
+
+================================================================================
+📅 SPRINT PLAN SUMMARY
+================================================================================
+
+Training Kubeflow Sprint 28:
+  Capacity: 48.0 / 48.3 story points (99%)
+  Already Planned: 15 items
+  Recommended: 83 items
+
+Training Kubeflow Sprint 29:
+  Capacity: 46.0 / 48.3 story points (95%)
+  Recommended: 16 items
+
+Training Kubeflow Sprint 30:
+  Capacity: 37.0 / 48.3 story points (77%)
+  Recommended: 9 items
+
+Training Kubeflow Sprint 31:
+  Capacity: 0.0 / 48.3 story points (0%)
+  Items: 0
+
+✅ HTML report saved to: 2026-03-13 Training Kubeflow Team Sprint Planner.html
+✅ JSON data saved to: 2026-03-13 Training Kubeflow Team Sprint Planner.json
