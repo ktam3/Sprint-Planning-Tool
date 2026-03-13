@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output files
+*.html
+*.json
+
+# Temporary and test files
+test_*.py
+debug_*.py
+check_*.py
+diagnose_*.py
+find_*.py
+inspect_*.py
+investigate_*.py
+
+# Environment variables
+.env
+*.token
+
+# OS
+.DS_Store
+Thumbs.db
