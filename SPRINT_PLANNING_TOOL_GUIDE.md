@@ -61,19 +61,46 @@ python3 sprint_planning_tool.py \
   --risk-data-file risk_analysis.json
 ```
 
+### Full Example with Team ID Filter
+```bash
+python3 sprint_planning_tool.py \
+  --project RHOAIENG \
+  --component "Training Kubeflow" \
+  --team-name "Training Kubeflow Team" \
+  --team-id 4967 \
+  --sprint-pattern "Training Kubeflow Sprint" \
+  --num-sprints 4 \
+  --output-html sprint_plan.html
+```
+
+**Note:** The `--team-id` parameter filters to only include items assigned to your team (or unassigned items), excluding cross-team items. To find your team ID:
+1. Go to Jira and view an issue from your team
+2. Look for the "Team" field value
+3. The team ID is the numeric value (e.g., 4967 for "AIP Training Kubeflow")
+
+### Finding Your Component Name
+
+If you're not sure what your component name is:
+1. Go to Jira: https://issues.redhat.com
+2. Navigate to your project (e.g., RHOAIENG)
+3. Click on an issue from your team
+4. Look at the "Component/s" field - use the exact name shown there
+5. If multiple components, separate with commas: `--component "Comp1,Comp2"`
+
 ## Command-Line Arguments
 
 | Argument | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `--project` | Yes | - | Jira project key (e.g., RHOAIENG) |
-| `--component` | Yes | - | Team component name (e.g., "Training Kubeflow") |
+| `--project` | Yes | - | Jira project key (e.g., RHOAIENG). Can be comma-separated (e.g., "RHAIENG,RHOAIENG") |
+| `--component` | Yes | - | Team component name (e.g., "Training Kubeflow"). Can be comma-separated for multiple components |
 | `--team-name` | No | component | Team display name for reports |
-| `--sprint-pattern` | No | None | Sprint naming pattern for filtering history |
+| `--team-id` | No | None | Jira Team field ID for filtering (e.g., 4967). Filters to team items + unassigned items, excludes cross-team items |
+| `--sprint-pattern` | No | None | Sprint naming pattern for filtering history (e.g., "Training Kubeflow Sprint"). **Highly recommended for accurate velocity** |
 | `--num-sprints` | No | 4 | Number of future sprints to plan (1-4+) |
 | `--sprint-length` | No | 2 | Sprint length in weeks |
 | `--velocity-months` | No | 3 | Months to look back for velocity calculation |
-| `--output-html` | No | None | Path to save HTML dashboard |
-| `--output-json` | No | None | Path to save JSON data |
+| `--output-html` | No | None | Path to save HTML dashboard (auto-generated if not specified) |
+| `--output-json` | No | None | Path to save JSON data (auto-generated if not specified) |
 | `--risk-data-file` | No | None | Path to risk analysis JSON from teammate tools |
 
 ## How Prioritization Works
