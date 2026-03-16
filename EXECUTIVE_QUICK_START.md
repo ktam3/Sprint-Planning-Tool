@@ -62,6 +62,11 @@ cd Sprint-Planning-Tool
    export JIRA_API_TOKEN='your-token-here'
    ```
 
+   **Note:** If `export` doesn't work in your shell, use inline variables instead:
+   ```bash
+   JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' ./run_sprint_planner.sh
+   ```
+
 4. **Run the interactive script:**
    ```bash
    ./run_sprint_planner.sh
@@ -192,10 +197,20 @@ export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
 ```
 
+**Alternative (if export doesn't work):** Use inline variables:
+```bash
+JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' ./run_sprint_planner.sh
+```
+
 ### ❌ "JIRA_EMAIL environment variable must be set"
 **Fix:** You need to set your Red Hat email address:
 ```bash
 export JIRA_EMAIL='yourname@redhat.com'
+```
+
+**Alternative (if export doesn't work):** Use inline variables:
+```bash
+JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' ./run_sprint_planner.sh
 ```
 
 ---
@@ -307,6 +322,11 @@ Contact the tool maintainer or create an issue in the repository.
    export JIRA_API_TOKEN='your-token-here'
    ```
 
+   Or use inline credentials:
+   ```bash
+   JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' python3 sprint_planning_tool.py [options]
+   ```
+
 4. **Run analysis:**
    ```bash
    python3 sprint_planning_tool.py \
@@ -334,9 +354,12 @@ Contact the tool maintainer or create an issue in the repository.
 ## Quick Reference Card
 
 ```bash
-# Set credentials (once per session)
+# Method 1: Set credentials (once per session)
 export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
+
+# Method 2: Use inline credentials (if export doesn't work)
+# JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' [command]
 
 # Navigate to tool
 cd ~/Sprint-Planning-Tool
