@@ -19,12 +19,14 @@ The Sprint Planning Tool analyzes your team's Jira backlog and automatically pla
 You need a Jira API token to access Red Hat's Jira instance.
 
 **To get your token:**
-1. Log into Red Hat Jira: https://issues.redhat.com
+1. Log into Red Hat Jira: https://redhat.atlassian.net
 2. Click your profile icon (top right) → **Personal Access Tokens**
 3. Click **Create token**
 4. Give it a name: "Sprint Planning Tool"
-5. Copy the token (starts with something like `MTQ2NjExMTE...`)
+5. Copy the token (starts with something like `ATATT3xFfGF0...`)
 6. **Save it securely** - you'll need it every time
+
+**Note:** You'll also need your Red Hat email address (e.g., `yourname@redhat.com`)
 
 ### 2. **Python 3** (Usually Already Installed)
 Check if you have it:
@@ -54,8 +56,9 @@ cd Sprint-Planning-Tool
    cd ~/Sprint-Planning-Tool
    ```
 
-3. **Set your Jira token:**
+3. **Set your Jira credentials:**
    ```bash
+   export JIRA_EMAIL='yourname@redhat.com'
    export JIRA_API_TOKEN='your-token-here'
    ```
 
@@ -78,13 +81,13 @@ For **Training Kubeflow Team:**
 ```bash
 cd ~/Sprint-Planning-Tool
 
+export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
 
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
   --team-name "Training Kubeflow Team" \
-  --team-id 4967 \
   --sprint-pattern "Training Kubeflow Sprint" \
   --num-sprints 4
 ```
@@ -93,6 +96,7 @@ For **Data Processing Team:**
 ```bash
 cd ~/Sprint-Planning-Tool
 
+export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
 
 python3 sprint_planning_tool.py \
@@ -111,20 +115,22 @@ python3 sprint_planning_tool.py \
 You'll see a summary like this:
 ```
 📊 Calculating team velocity (last 3 months)...
-   Velocity: 48.3 story points/sprint
-   Completion Rate: 87%
+   Velocity: 47.2 story points/sprint
+   Completion Rate: 86%
+   Sprints Analyzed: 5
 
 📋 Fetching backlog...
-   Found 109 backlog items
+   Found 100 backlog items
 
 🔢 Detecting current sprint...
    Current Sprint: Training Kubeflow Sprint 27
+   Planning for: Training Kubeflow Sprint 28 - 31
 
 📅 SPRINT PLAN SUMMARY
 Training Kubeflow Sprint 28:
-  Capacity: 48.0 / 48.3 story points (99%)
+  Capacity: 47.0 / 47.2 story points (100%)
   Already Planned: 15 items
-  Recommended: 83 items
+  Recommended: 87 items
 ```
 
 ### HTML Dashboard
@@ -146,7 +152,7 @@ Training Kubeflow Sprint 28:
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
+  --sprint-pattern "Training Kubeflow Sprint" \
   --num-sprints 8
 ```
 Increase `--num-sprints` to see longer-term planning.
@@ -158,7 +164,7 @@ Increase `--num-sprints` to see longer-term planning.
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
+  --sprint-pattern "Training Kubeflow Sprint" \
   --sprint-length 3
 ```
 Change `--sprint-length` to model different sprint durations.
@@ -170,7 +176,7 @@ Change `--sprint-length` to model different sprint durations.
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
+  --sprint-pattern "Training Kubeflow Sprint" \
   --num-sprints 2
 ```
 Fewer sprints = faster results for quick checks.
@@ -180,9 +186,16 @@ Fewer sprints = faster results for quick checks.
 ## Troubleshooting
 
 ### ❌ "JIRA_API_TOKEN environment variable must be set"
-**Fix:** You forgot to set your token. Run:
+**Fix:** You forgot to set your credentials. Run:
 ```bash
+export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
+```
+
+### ❌ "JIRA_EMAIL environment variable must be set"
+**Fix:** You need to set your Red Hat email address:
+```bash
+export JIRA_EMAIL='yourname@redhat.com'
 ```
 
 ---
@@ -203,11 +216,12 @@ export JIRA_API_TOKEN='your-token-here'
 
 ---
 
-### ❌ "Velocity: 0.0 issues/sprint"
+### ❌ "Velocity: 0.0 story points/sprint"
 **Possible causes:**
 1. **No sprint history** - New team or sprint pattern doesn't match
 2. **Wrong sprint pattern** - Verify your team's sprint naming (e.g., "DP Sprint", "Training Kubeflow Sprint")
 3. **Need more history** - Add `--velocity-months 6` to look back further
+4. **No story points on issues** - Tool will fall back to issue count if no story points are found
 
 **Fix:** The tool will still work but will use estimated velocity.
 
@@ -222,8 +236,9 @@ export JIRA_API_TOKEN='your-token-here'
 | `--velocity-months` | Months of history to analyze | `--velocity-months 6` |
 | `--output-html` | Custom HTML filename | `--output-html my_plan.html` |
 | `--output-json` | Custom JSON filename | `--output-json my_plan.json` |
-| `--team-id` | Jira Team field ID for filtering | `--team-id 4967` |
-| `--sprint-pattern` | Sprint naming pattern | `--sprint-pattern "DP Sprint"` |
+| `--sprint-pattern` | Sprint naming pattern (recommended) | `--sprint-pattern "DP Sprint"` |
+
+**Note:** `--team-id` parameter has been temporarily disabled due to Jira migration changes. Use `--component` for team filtering.
 
 ---
 
@@ -286,8 +301,9 @@ Contact the tool maintainer or create an issue in the repository.
    cd ~/Sprint-Planning-Tool
    ```
 
-3. **Set token** (if not already set in your shell profile):
+3. **Set credentials** (if not already set in your shell profile):
    ```bash
+   export JIRA_EMAIL='yourname@redhat.com'
    export JIRA_API_TOKEN='your-token-here'
    ```
 
@@ -296,13 +312,13 @@ Contact the tool maintainer or create an issue in the repository.
    python3 sprint_planning_tool.py \
      --project RHOAIENG \
      --component "Training Kubeflow" \
-     --team-id 4967 \
+     --sprint-pattern "Training Kubeflow Sprint" \
      --num-sprints 4
    ```
 
 5. **Open HTML report:**
    ```bash
-   open "2026-03-13 Training Kubeflow Team Sprint Planner.html"
+   open "2026-03-16 Training Kubeflow Team Sprint Planner.html"
    ```
 
 6. **Review in browser:**
@@ -318,7 +334,8 @@ Contact the tool maintainer or create an issue in the repository.
 ## Quick Reference Card
 
 ```bash
-# Set token (once per session)
+# Set credentials (once per session)
+export JIRA_EMAIL='yourname@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
 
 # Navigate to tool
@@ -328,7 +345,7 @@ cd ~/Sprint-Planning-Tool
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
+  --sprint-pattern "Training Kubeflow Sprint" \
   --num-sprints 4
 
 # Open latest report
@@ -337,6 +354,22 @@ open "$(ls -t *.html | head -1)"
 
 ---
 
-**Last Updated:** March 13, 2026
-**Version:** 1.0
+**Last Updated:** March 16, 2026
+**Version:** 2.0 (Updated for new Jira instance)
 **Status:** Internal Use Only - Security Audit Pending
+
+---
+
+## 🔄 Version 2.0 Updates (March 16, 2026)
+
+**What Changed:**
+- ✅ Updated for Red Hat's Jira migration to Atlassian Cloud (redhat.atlassian.net)
+- ✅ Now requires both JIRA_EMAIL and JIRA_API_TOKEN
+- ✅ Calculates velocity using **story points** instead of issue count
+- ✅ Removed `--team-id` parameter (temporarily disabled due to ID format change)
+- ✅ Updated to Jira API v3
+
+**Impact on Results:**
+- More accurate velocity calculations (47.2 story points/sprint vs. 17 issues/sprint)
+- Better capacity planning based on actual effort/complexity
+- Improved sprint planning accuracy
