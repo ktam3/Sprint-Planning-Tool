@@ -5,13 +5,14 @@ Automated sprint planning tool that analyzes your Jira backlog and creates data-
 ## 🚀 Quick Start (5 Minutes)
 
 **1. Get your Jira API token:**
-- Go to https://issues.redhat.com
+- Go to https://redhat.atlassian.net
 - Profile → Personal Access Tokens → Create token
 - Copy the token
 
 **2. Run the tool:**
 ```bash
 cd Sprint-Planning-Tool
+export JIRA_EMAIL='your-email@redhat.com'
 export JIRA_API_TOKEN='your-token-here'
 
 python3 sprint_planning_tool.py \
@@ -31,12 +32,13 @@ open "2026-03-13 Training Kubeflow Sprint Planner.html"
 
 ## 📊 What It Does
 
-- **Calculates Team Velocity** from sprint history (e.g., 48.3 story points/sprint)
-- **Analyzes Backlog** in real-time from Jira (e.g., 109 items)
+- **Calculates Team Velocity** from sprint history using story points (e.g., 47.2 story points/sprint)
+- **Analyzes Backlog** in real-time from Jira (e.g., 100+ items)
 - **Plans Multiple Sprints** ahead (default: 4 sprints)
 - **Prioritizes Intelligently** using dependencies, deadlines, and RICE scores
 - **Generates HTML Dashboards** with capacity bars and clickable issue links
 - **Provides Recommendations** for capacity warnings and risks
+- **Supports Story Points** - automatically uses story points if available, falls back to issue count
 
 **Time Savings:** Manual sprint planning (~2-3 hours) → Automated (~30 seconds) = **99% faster!**
 
@@ -66,9 +68,11 @@ Uses 6 factors to prioritize your backlog:
 - Dependencies (blockers prioritized first)
 
 ### Team ID Filtering
-Filter to your team's items only:
+**Note**: Team IDs changed with the Jira migration. The old numeric IDs (e.g., 4967) no longer work.
+For now, omit the `--team-id` parameter and rely on the component filter:
 ```bash
---team-id 4967  # Excludes cross-team items
+# Component filter is usually sufficient
+--component "Training Kubeflow"
 ```
 
 ### What-If Analysis
@@ -93,17 +97,17 @@ Try different scenarios:
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
   --sprint-pattern "Training Kubeflow Sprint" \
   --num-sprints 4
 ```
 
 **Results:**
-- ✅ Velocity: 48.3 story points/sprint (based on last 6 sprints)
-- ✅ Completion Rate: 87%
-- ✅ Backlog: 109 items analyzed
+- ✅ Velocity: 47.2 story points/sprint (based on last 5 sprints)
+- ✅ Completion Rate: 86%
+- ✅ Backlog: 100 items analyzed
 - ✅ Current Sprint: Training Kubeflow Sprint 27
 - ✅ Planning: Sprints 28-31
+- ✅ Sprint 28: 47 story points planned (15 items)
 
 **Output:**
 - Professional HTML dashboard
@@ -228,10 +232,12 @@ See [FRIDAY_TEST_RESULTS_COMPLETE.md](FRIDAY_TEST_RESULTS_COMPLETE.md) for detai
 
 ```bash
 # Training Kubeflow Team
+export JIRA_EMAIL='your-email@redhat.com'
+export JIRA_API_TOKEN='your-token'
+
 python3 sprint_planning_tool.py \
   --project RHOAIENG \
   --component "Training Kubeflow" \
-  --team-id 4967 \
   --sprint-pattern "Training Kubeflow Sprint"
 
 # Data Processing Team
@@ -265,6 +271,16 @@ Internal Red Hat use only. Security audit pending before public release.
 
 ---
 
-**Last Updated:** March 13, 2026
-**Version:** 1.0
+**Last Updated:** March 16, 2026
+**Version:** 2.0 (Updated for new Jira instance)
 **Status:** Production Ready for Internal Use
+
+## 🔄 What's New in v2.0 (March 16, 2026)
+
+Updated for Red Hat's migration to Atlassian Cloud (redhat.atlassian.net):
+- ✅ Updated authentication to use Basic auth (email + API token)
+- ✅ Migrated to Jira API v3 (`/rest/api/3/search/jql`)
+- ✅ Updated Sprint field ID (customfield_10020)
+- ✅ **Updated Story Points field ID (customfield_10028) - now calculates velocity in story points!**
+- ✅ Added support for new JSON sprint data format
+- ✅ Team ID filtering temporarily disabled (IDs changed from numeric to UUIDs)

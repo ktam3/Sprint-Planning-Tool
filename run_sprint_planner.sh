@@ -23,9 +23,20 @@ if [ -z "$JIRA_API_TOKEN" ]; then
     echo ""
     echo -e "${YELLOW}Please set your Jira API token:${NC}"
     echo -e "  export JIRA_API_TOKEN='your-token-here'"
+    echo -e "  export JIRA_EMAIL='your-email@redhat.com'"
     echo ""
     echo -e "${YELLOW}Or run this script with:${NC}"
-    echo -e "  JIRA_API_TOKEN='your-token' $0"
+    echo -e "  JIRA_API_TOKEN='your-token' JIRA_EMAIL='your-email' $0"
+    echo ""
+    exit 1
+fi
+
+# Check if JIRA_EMAIL is set
+if [ -z "$JIRA_EMAIL" ]; then
+    echo -e "${RED}❌ ERROR: JIRA_EMAIL not set${NC}"
+    echo ""
+    echo -e "${YELLOW}Please set your Jira email:${NC}"
+    echo -e "  export JIRA_EMAIL='your-email@redhat.com'"
     echo ""
     exit 1
 fi
@@ -61,7 +72,6 @@ case $choice in
             --project RHOAIENG \
             --component "Training Kubeflow" \
             --team-name "Training Kubeflow Team" \
-            --team-id 4967 \
             --sprint-pattern "Training Kubeflow Sprint" \
             --num-sprints 4
         ;;

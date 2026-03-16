@@ -8,6 +8,7 @@ velocity, and integration with sprint health/risk analysis tools.
 import os
 import sys
 import json
+import base64
 import requests
 import argparse
 import re
@@ -16,7 +17,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 
 # Jira Configuration
-JIRA_URL = os.getenv('JIRA_URL', 'https://issues.redhat.com')
+JIRA_URL = os.getenv('JIRA_URL', 'https://redhat.atlassian.net')
+JIRA_EMAIL = os.getenv('JIRA_EMAIL')
 JIRA_API_TOKEN = os.getenv('JIRA_API_TOKEN')
 
 # Default status mappings
@@ -73,20 +75,26 @@ class JiraClient:
     def __init__(self):
         if not JIRA_API_TOKEN:
             raise ValueError("JIRA_API_TOKEN environment variable must be set")
+        if not JIRA_EMAIL:
+            raise ValueError("JIRA_EMAIL environment variable must be set")
+
+        # Use Basic authentication for Atlassian Cloud
+        auth_string = f"{JIRA_EMAIL}:{JIRA_API_TOKEN}"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
 
         self.headers = {
-            "Authorization": f"Bearer {JIRA_API_TOKEN}",
+            "Authorization": f"Basic {encoded_auth}",
             "Content-Type": "application/json"
         }
         self.url = JIRA_URL
 
     def search_issues(self, jql: str, fields: List[str] = None, max_results: int = 1000) -> List[Dict]:
-        """Search for issues using JQL"""
+        """Search for issues using JQL (API v3)"""
         if fields is None:
             fields = ['key', 'summary', 'status', 'priority', 'assignee', 'created',
                      'updated', 'issuetype', 'issuelinks', 'parent', 'customfield_12319940']
 
-        url = f"{self.url}/rest/api/2/search"
+        url = f"{self.url}/rest/api/3/search/jql"
         params = {
             'jql': jql,
             'maxResults': max_results,
@@ -113,8 +121,8 @@ class JiraClient:
         return response.json().get('issues', [])
 
     def get_issue(self, issue_key: str) -> Optional[Dict]:
-        """Get a single issue by key"""
-        url = f"{self.url}/rest/api/2/issue/{issue_key}"
+        """Get a single issue by key (API v3)"""
+        url = f"{self.url}/rest/api/3/issue/{issue_key}"
 
         response = requests.get(url, headers=self.headers)
 
@@ -130,9 +138,28 @@ class VelocityCalculator:
         self.jira = jira_client
 
     @staticmethod
-    def parse_sprint_string(sprint_str: str) -> Optional[Dict]:
-        """Parse Jira sprint string format"""
-        if not isinstance(sprint_str, str):
+    def parse_sprint_string(sprint_data) -> Optional[Dict]:
+        """
+        Parse Jira sprint data - handles both old string format and new JSON object format
+        Args:
+            sprint_data: Either a string (old format) or dict (new API v3 format)
+        Returns:
+            Dict with sprint info (id, state, name, startDate, endDate, completeDate)
+        """
+        # New API v3 format - already a dict
+        if isinstance(sprint_data, dict):
+            # Convert to consistent format
+            return {
+                'id': str(sprint_data.get('id', '')),
+                'state': sprint_data.get('state', '').upper(),
+                'name': sprint_data.get('name', ''),
+                'startDate': sprint_data.get('startDate', ''),
+                'endDate': sprint_data.get('endDate', ''),
+                'completeDate': sprint_data.get('completeDate', '')
+            }
+
+        # Old format - parse string
+        if not isinstance(sprint_data, str):
             return None
 
         sprint_info = {}
@@ -146,7 +173,7 @@ class VelocityCalculator:
         }
 
         for key, pattern in patterns.items():
-            match = re.search(pattern, sprint_str)
+            match = re.search(pattern, sprint_data)
             if match:
                 sprint_info[key] = match.group(1)
 
@@ -176,9 +203,12 @@ class VelocityCalculator:
             jql += f' AND {team_filter}'
         jql += ' AND sprint in closedSprints()'
 
-        # Common story points fields
-        story_points_fields = ['customfield_12310243', 'customfield_12311140', 'customfield_10004']
-        fields = ['key', 'status', 'customfield_12310940', 'updated', 'resolutiondate'] + story_points_fields
+        # Story points fields (new Jira instance)
+        # customfield_10028 = Story Points (primary field)
+        # customfield_10016 = Story point estimate (fallback)
+        # customfield_10506 = DEV Story Points (fallback)
+        story_points_fields = ['customfield_10028', 'customfield_10016', 'customfield_10506']
+        fields = ['key', 'status', 'customfield_10020', 'updated', 'resolutiondate'] + story_points_fields
         issues = self.jira.search_issues(jql, fields=fields)
 
         if not issues:
@@ -192,7 +222,7 @@ class VelocityCalculator:
 
         for issue in issues:
             fields_data = issue['fields']
-            sprint_field = fields_data.get('customfield_12310940', [])
+            sprint_field = fields_data.get('customfield_10020', [])
 
             if not isinstance(sprint_field, list):
                 sprint_field = [sprint_field] if sprint_field else []
@@ -215,7 +245,7 @@ class VelocityCalculator:
                             continue
 
             for sprint_item in sprint_field:
-                sprint_info = self.parse_sprint_string(sprint_item) if isinstance(sprint_item, str) else sprint_item
+                sprint_info = self.parse_sprint_string(sprint_item)
 
                 if isinstance(sprint_info, dict) and sprint_info.get('state') == 'CLOSED':
                     # Check if sprint matches pattern if provided
@@ -283,7 +313,7 @@ class BacklogAnalyzer:
         # Include story points fields for velocity calculation
         fields = ['key', 'summary', 'status', 'priority', 'assignee', 'issuetype',
                  'issuelinks', 'parent', 'created', 'updated', 'customfield_12319940',
-                 'customfield_12310243', 'customfield_12311140', 'customfield_10004']
+                 'customfield_10028', 'customfield_10016', 'customfield_10506']
 
         return self.jira.search_issues(jql, fields=fields)
 
@@ -534,22 +564,25 @@ class SprintPlanner:
         if team_filter:
             jql += f' AND {team_filter}'
         jql += ' AND sprint in openSprints()'
-        issues = self.jira.search_issues(jql, fields=['key', 'customfield_12310940'], max_results=10)
+        issues = self.jira.search_issues(jql, fields=['key', 'customfield_10020'], max_results=10)
 
         if not issues:
             return 0, sprint_pattern or "Sprint", None
 
         # Extract sprint names from issues
         for issue in issues:
-            sprint_field = issue['fields'].get('customfield_12310940', [])
+            # Handle cases where issue might not have fields key
+            if 'fields' not in issue:
+                continue
+            sprint_field = issue['fields'].get('customfield_10020', [])
             if not isinstance(sprint_field, list):
                 sprint_field = [sprint_field] if sprint_field else []
 
             for sprint_item in sprint_field:
-                if sprint_item and isinstance(sprint_item, str):
-                    # Parse sprint info
+                if sprint_item:
+                    # Parse sprint info (handles both string and dict formats)
                     sprint_info = VelocityCalculator.parse_sprint_string(sprint_item)
-                    if sprint_info and sprint_info.get('state') == 'ACTIVE':
+                    if sprint_info and sprint_info.get('state') in ['ACTIVE', 'FUTURE']:
                         sprint_name = sprint_info.get('name', '')
                         end_date = sprint_info.get('endDate', '')
 
@@ -595,7 +628,7 @@ class SprintPlanner:
             jql += f' AND {team_filter}'
         jql += ' AND (sprint in futureSprints() OR sprint in openSprints())'
 
-        fields = ['key', 'summary', 'status', 'priority', 'assignee', 'customfield_12310940']
+        fields = ['key', 'summary', 'status', 'priority', 'assignee', 'customfield_10020']
         issues = self.jira.search_issues(jql, fields=fields, max_results=1000)
 
         if not issues:
@@ -603,7 +636,7 @@ class SprintPlanner:
 
         for issue in issues:
             fields_data = issue['fields']
-            sprint_field = fields_data.get('customfield_12310940', [])
+            sprint_field = fields_data.get('customfield_10020', [])
             if not isinstance(sprint_field, list):
                 sprint_field = [sprint_field] if sprint_field else []
 
@@ -613,7 +646,7 @@ class SprintPlanner:
             latest_sprint_num = -1
 
             for sprint_item in sprint_field:
-                if sprint_item and isinstance(sprint_item, str):
+                if sprint_item:
                     sprint_info = VelocityCalculator.parse_sprint_string(sprint_item)
                     if sprint_info:
                         sprint_name = sprint_info.get('name', '')
@@ -792,8 +825,8 @@ class SprintPlanner:
         if existing_sprint_items is None:
             existing_sprint_items = {}
 
-        # Story points fields to check
-        story_points_fields = ['customfield_12310243', 'customfield_12311140', 'customfield_10004']
+        # Story points fields to check (new Jira instance)
+        story_points_fields = ['customfield_10028', 'customfield_10016', 'customfield_10506']
 
         def get_story_points(issue_dict):
             """Extract story points from issue, return 0 if not found"""
