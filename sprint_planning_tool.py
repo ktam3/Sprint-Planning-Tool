@@ -89,36 +89,58 @@ class JiraClient:
         self.url = JIRA_URL
 
     def search_issues(self, jql: str, fields: List[str] = None, max_results: int = 1000) -> List[Dict]:
-        """Search for issues using JQL (API v3)"""
+        """Search for issues using JQL (API v3) with cursor-based pagination"""
         if fields is None:
             fields = ['key', 'summary', 'status', 'priority', 'assignee', 'created',
                      'updated', 'issuetype', 'issuelinks', 'parent', 'customfield_12319940']
 
         url = f"{self.url}/rest/api/3/search/jql"
-        params = {
-            'jql': jql,
-            'maxResults': max_results,
-            'fields': ','.join(fields)
-        }
+        all_issues = []
+        next_page_token = None
+        page_size = 100  # Jira API max per request
 
-        response = requests.get(url, headers=self.headers, params=params)
+        while len(all_issues) < max_results:
+            params = {
+                'jql': jql,
+                'maxResults': min(page_size, max_results - len(all_issues)),
+                'fields': ','.join(fields)
+            }
 
-        if response.status_code != 200:
-            print(f"❌ Error fetching issues from Jira (HTTP {response.status_code})")
-            if response.status_code == 400:
-                print("   💡 This usually means:")
-                print("      - Invalid JIRA_API_TOKEN (check your token is correct)")
-                print("      - JQL query syntax error")
-                print(f"   Query: {jql}")
-            elif response.status_code == 401:
-                print("   💡 Authentication failed - check your JIRA_API_TOKEN")
-            elif response.status_code == 403:
-                print("   💡 Access denied - your token may not have permission to access this project")
-            else:
-                print(f"   Query: {jql}")
-            return []
+            # Add pagination token if we have one
+            if next_page_token:
+                params['nextPageToken'] = next_page_token
 
-        return response.json().get('issues', [])
+            response = requests.get(url, headers=self.headers, params=params)
+
+            if response.status_code != 200:
+                print(f"❌ Error fetching issues from Jira (HTTP {response.status_code})")
+                if response.status_code == 400:
+                    print("   💡 This usually means:")
+                    print("      - Invalid JIRA_API_TOKEN (check your token is correct)")
+                    print("      - JQL query syntax error")
+                    print(f"   Query: {jql}")
+                elif response.status_code == 401:
+                    print("   💡 Authentication failed - check your JIRA_API_TOKEN")
+                elif response.status_code == 403:
+                    print("   💡 Access denied - your token may not have permission to access this project")
+                else:
+                    print(f"   Query: {jql}")
+                return all_issues
+
+            data = response.json()
+            issues = data.get('issues', [])
+            all_issues.extend(issues)
+
+            # Check if this is the last page
+            if data.get('isLast', True):
+                break
+
+            # Get next page token
+            next_page_token = data.get('nextPageToken')
+            if not next_page_token:
+                break
+
+        return all_issues
 
     def get_issue(self, issue_key: str) -> Optional[Dict]:
         """Get a single issue by key (API v3)"""
@@ -244,6 +266,11 @@ class VelocityCalculator:
                         except (ValueError, TypeError):
                             continue
 
+            # Find the MOST RECENT closed sprint that matches the pattern
+            # Only count the issue in that sprint to avoid double-counting
+            latest_sprint_name = None
+            latest_sprint_date = None
+
             for sprint_item in sprint_field:
                 sprint_info = self.parse_sprint_string(sprint_item)
 
@@ -259,18 +286,25 @@ class VelocityCalculator:
                         try:
                             end_date = datetime.strptime(end_date_str[:10], '%Y-%m-%d')
                             if end_date >= cutoff_date:
-                                # Track issue count
-                                sprint_data_count[sprint_name]['total'] += 1
-                                if status in done_statuses:
-                                    sprint_data_count[sprint_name]['completed'] += 1
-
-                                # Track story points if available
-                                if story_points is not None:
-                                    sprint_data_points[sprint_name]['total'] += story_points
-                                    if status in done_statuses:
-                                        sprint_data_points[sprint_name]['completed'] += story_points
+                                # Track the most recent sprint
+                                if latest_sprint_date is None or end_date > latest_sprint_date:
+                                    latest_sprint_date = end_date
+                                    latest_sprint_name = sprint_name
                         except:
                             pass
+
+            # Only count the issue in the most recent closed sprint
+            if latest_sprint_name:
+                # Track issue count
+                sprint_data_count[latest_sprint_name]['total'] += 1
+                if status in done_statuses:
+                    sprint_data_count[latest_sprint_name]['completed'] += 1
+
+                # Track story points if available
+                if story_points is not None:
+                    sprint_data_points[latest_sprint_name]['total'] += story_points
+                    if status in done_statuses:
+                        sprint_data_points[latest_sprint_name]['completed'] += story_points
 
         if not sprint_data_count:
             return 0.0, 0.0, 0, 'issues'
@@ -582,7 +616,7 @@ class SprintPlanner:
                 if sprint_item:
                     # Parse sprint info (handles both string and dict formats)
                     sprint_info = VelocityCalculator.parse_sprint_string(sprint_item)
-                    if sprint_info and sprint_info.get('state') in ['ACTIVE', 'FUTURE']:
+                    if sprint_info and sprint_info.get('state', '').upper() in ['ACTIVE', 'FUTURE']:
                         sprint_name = sprint_info.get('name', '')
                         end_date = sprint_info.get('endDate', '')
 
@@ -653,7 +687,7 @@ class SprintPlanner:
                         sprint_state = sprint_info.get('state', '')
 
                         # ONLY consider ACTIVE or FUTURE sprints (exclude CLOSED)
-                        if sprint_state not in ['ACTIVE', 'FUTURE']:
+                        if sprint_state.upper() not in ['ACTIVE', 'FUTURE']:
                             excluded_old_sprints.add(sprint_name)
                             continue
 

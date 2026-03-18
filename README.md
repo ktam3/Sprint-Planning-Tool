@@ -271,9 +271,23 @@ Internal Red Hat use only. Security audit pending before public release.
 
 ---
 
-**Last Updated:** March 16, 2026
-**Version:** 2.0 (Updated for new Jira instance)
+**Last Updated:** March 18, 2026
+**Version:** 2.1 (Critical bug fixes)
 **Status:** Production Ready for Internal Use
+
+## 🔄 What's New in v2.1 (March 18, 2026)
+
+**Critical Bug Fixes:**
+- ✅ **Fixed case-sensitive sprint state check** - Now properly detects future/active sprints (was missing items)
+- ✅ **Fixed pagination duplicates** - Implemented cursor-based pagination with `nextPageToken`
+- ✅ **Fixed velocity inflation** - Issues now only counted once in most recent sprint (was 200-300% inflated)
+
+**Impact:**
+- Velocity calculations now accurate (e.g., Llama Stack: 95.8 pts vs incorrectly 129.2 pts)
+- Sprint item detection working correctly (e.g., now detects all 4 items in Sprint 14 vs only 1)
+- Pagination now fetches all issues beyond first 100
+
+See [BUG_FIXES_2026-03-18.md](BUG_FIXES_2026-03-18.md) for detailed information.
 
 ## 🔄 What's New in v2.0 (March 16, 2026)
 
