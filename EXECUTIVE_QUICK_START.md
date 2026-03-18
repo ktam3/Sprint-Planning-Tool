@@ -377,9 +377,31 @@ open "$(ls -t *.html | head -1)"
 
 ---
 
-**Last Updated:** March 16, 2026
-**Version:** 2.0 (Updated for new Jira instance)
+**Last Updated:** March 18, 2026
+**Version:** 2.1 (Critical bug fixes)
 **Status:** Internal Use Only - Security Audit Pending
+
+---
+
+## 🔄 Version 2.1 Updates (March 18, 2026)
+
+**Critical Bug Fixes:**
+- ✅ **Fixed velocity inflation bug** - Issues now counted only once in most recent sprint (was 200-300% inflated)
+- ✅ **Fixed sprint item detection** - Proper case-insensitive comparison now detects all planned items
+- ✅ **Fixed pagination** - Now fetches all backlog items beyond first 100
+
+**Impact:**
+- **Much more accurate velocity** - Example: Llama Stack Core now shows 95.8 pts/sprint (was incorrectly 129.2)
+- **All sprint items detected** - Example: Now shows all 4 items in Sprint 14 (was only showing 1)
+- **Complete backlog** - No longer limited to first 100 issues
+
+**Why This Matters:**
+The tool was significantly overestimating team capacity and missing already-planned work. These fixes ensure:
+- Sprint plans match realistic team velocity
+- You see all items already committed to upcoming sprints
+- Capacity planning is accurate and reliable
+
+See [BUG_FIXES_2026-03-18.md](BUG_FIXES_2026-03-18.md) for technical details.
 
 ---
 
