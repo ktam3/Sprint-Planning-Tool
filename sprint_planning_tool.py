@@ -321,6 +321,72 @@ class VelocityCalculator:
 
         return avg_completed, completion_rate, num_sprints, velocity_unit
 
+    def get_carry_over_items(self, project: str, component: str,
+                             sprint_pattern: Optional[str] = None,
+                             min_sprints: int = 3,
+                             team_id: Optional[int] = None) -> List[Dict]:
+        """
+        Identify items carried over across multiple closed sprints without completion.
+        Returns items that appeared in min_sprints or more closed sprints and are still not done.
+        """
+        project_filter = build_project_filter(project)
+        component_filter = build_component_filter(component)
+        team_filter = build_team_filter(team_id) if team_id else None
+
+        jql = f'{project_filter} AND {component_filter}'
+        if team_filter:
+            jql += f' AND {team_filter}'
+        jql += ' AND sprint in closedSprints() AND status NOT IN (Done, Closed, Resolved)'
+
+        story_points_fields = ['customfield_10028', 'customfield_10016', 'customfield_10506']
+        fields = ['key', 'summary', 'status', 'priority', 'assignee', 'customfield_10020'] + story_points_fields
+        issues = self.jira.search_issues(jql, fields=fields, max_results=1000)
+
+        carry_overs = []
+
+        for issue in issues:
+            fields_data = issue['fields']
+            sprint_field = fields_data.get('customfield_10020', [])
+            if not isinstance(sprint_field, list):
+                sprint_field = [sprint_field] if sprint_field else []
+
+            closed_sprint_names = []
+            for sprint_item in sprint_field:
+                sprint_info = self.parse_sprint_string(sprint_item)
+                if sprint_info and sprint_info.get('state') == 'CLOSED':
+                    sprint_name = sprint_info.get('name', '')
+                    if sprint_pattern and sprint_pattern not in sprint_name:
+                        continue
+                    closed_sprint_names.append(sprint_name)
+
+            if len(closed_sprint_names) >= min_sprints:
+                story_points = 0
+                for sp_field in story_points_fields:
+                    sp_value = fields_data.get(sp_field)
+                    if sp_value is not None:
+                        try:
+                            sp_float = float(sp_value)
+                            if sp_float > 0:
+                                story_points = sp_float
+                                break
+                        except (ValueError, TypeError):
+                            continue
+
+                carry_overs.append({
+                    'key': issue['key'],
+                    'summary': fields_data.get('summary', ''),
+                    'status': fields_data['status']['name'],
+                    'priority': fields_data.get('priority', {}).get('name', 'Undefined'),
+                    'assignee': fields_data.get('assignee', {}).get('displayName', 'Unassigned') if fields_data.get('assignee') else 'Unassigned',
+                    'sprint_count': len(closed_sprint_names),
+                    'sprints': sorted(closed_sprint_names),
+                    'story_points': story_points
+                })
+
+        carry_overs.sort(key=lambda x: x['sprint_count'], reverse=True)
+        return carry_overs
+
+
 class BacklogAnalyzer:
     """Analyzes and prioritizes backlog items"""
 
@@ -739,7 +805,8 @@ class SprintPlanner:
                      component: str = "",
                      velocity_unit: str = "issues",
                      current_sprint_end_date: Optional[str] = None,
-                     team_id: Optional[int] = None) -> Dict:
+                     team_id: Optional[int] = None,
+                     min_carry_over_sprints: int = 3) -> Dict:
         """
         Plan sprint assignments for backlog items
 
@@ -753,6 +820,7 @@ class SprintPlanner:
             project: Jira project key
             component: Team component name
             velocity_unit: Unit of velocity measurement ('story points' or 'issues')
+            min_carry_over_sprints: Minimum closed sprints to flag as carry-over (default: 3)
 
         Returns:
             Dictionary with sprint plans and recommendations
@@ -803,9 +871,44 @@ class SprintPlanner:
         # Generate timeline forecast
         timeline = self._generate_timeline(sprint_assignments, sprint_length_weeks, current_sprint_end_date)
 
+        # Detect carry-over items
+        carry_overs = []
+        if project and component:
+            velocity_calculator = VelocityCalculator(self.jira)
+            carry_overs = velocity_calculator.get_carry_over_items(
+                project, component,
+                sprint_pattern=sprint_name_pattern,
+                min_sprints=min_carry_over_sprints,
+                team_id=team_id
+            )
+
+            # Add carry-over recommendations
+            if carry_overs:
+                severe_threshold = max(min_carry_over_sprints + 2, 5)
+                severe = [c for c in carry_overs if c['sprint_count'] >= severe_threshold]
+                moderate = [c for c in carry_overs if min_carry_over_sprints <= c['sprint_count'] < severe_threshold]
+
+                if severe:
+                    recommendations.append({
+                        'type': 'WARNING',
+                        'severity': 'HIGH',
+                        'sprint': 'Backlog Health',
+                        'message': f"{len(severe)} item(s) carried over 5+ sprints: {', '.join(c['key'] for c in severe[:5])}",
+                        'action': "These items need attention - consider splitting, descoping, or escalating blockers"
+                    })
+                if moderate:
+                    recommendations.append({
+                        'type': 'WARNING',
+                        'severity': 'MEDIUM',
+                        'sprint': 'Backlog Health',
+                        'message': f"{len(moderate)} item(s) carried over 3-4 sprints",
+                        'action': "Review why these items keep slipping - they may need re-estimation or dependency resolution"
+                    })
+
         return {
             'sprint_assignments': sprint_assignments,
             'recommendations': recommendations,
+            'carry_overs': carry_overs,
             'timeline': timeline,
             'metadata': {
                 'velocity': velocity,
@@ -813,7 +916,8 @@ class SprintPlanner:
                 'num_sprints_planned': num_sprints,
                 'sprint_length_weeks': sprint_length_weeks,
                 'total_backlog_items': len(backlog),
-                'items_planned': sum(len(s['items']) for s in sprint_assignments.values())
+                'items_planned': sum(len(s['items']) for s in sprint_assignments.values()),
+                'carry_over_count': len(carry_overs)
             }
         }
 
@@ -1617,6 +1721,41 @@ class OutputGenerator:
         else:
             html += "<div>No specific recommendations - planning looks good!</div>"
 
+        # Carry-Over Items
+        carry_overs = plan_data.get('carry_overs', [])
+        if carry_overs:
+            html += f"<h2>🔄 Chronic Carry-Overs ({len(carry_overs)} items)</h2>"
+            html += """<p style="color: #666;">Items that have been in 3+ closed sprints without completion. Consider splitting, descoping, or resolving blockers.</p>"""
+            html += """
+        <table>
+            <tr>
+                <th>Issue</th>
+                <th>Summary</th>
+                <th>Sprints</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Assignee</th>
+                <th>SP</th>
+            </tr>
+"""
+            for item in carry_overs:
+                jira_link = f"{jira_url}/browse/{item['key']}"
+                sprint_count = item['sprint_count']
+                severity_color = '#f44336' if sprint_count >= 5 else '#ff9800'
+                sp_display = f"{item['story_points']:.0f}" if item['story_points'] > 0 else '-'
+                html += f"""
+            <tr>
+                <td><a href="{jira_link}" target="_blank">{item['key']}</a></td>
+                <td>{item['summary'][:60]}{'...' if len(item['summary']) > 60 else ''}</td>
+                <td style="color: {severity_color}; font-weight: bold;">{sprint_count} sprints</td>
+                <td>{item['status']}</td>
+                <td>{item['priority']}</td>
+                <td>{item['assignee']}</td>
+                <td>{sp_display}</td>
+            </tr>
+"""
+            html += "</table>"
+
         # Timeline
         html += "<h2>📆 Timeline Forecast</h2>"
 
@@ -1688,6 +1827,7 @@ def main():
     parser.add_argument('--output-html', help='Path to save HTML output')
     parser.add_argument('--output-json', help='Path to save JSON output')
     parser.add_argument('--risk-data-file', help='Path to risk analysis data file (JSON) from teammate tools')
+    parser.add_argument('--carry-over-sprints', type=int, default=3, help='Minimum closed sprints to flag an item as a chronic carry-over (default: 3)')
 
     args = parser.parse_args()
 
@@ -1783,7 +1923,8 @@ def main():
             component=args.component,
             velocity_unit=velocity_unit,
             current_sprint_end_date=current_sprint_end_date,
-            team_id=args.team_id
+            team_id=args.team_id,
+            min_carry_over_sprints=args.carry_over_sprints
         )
         print()
 
@@ -1817,6 +1958,19 @@ def main():
             if sprint_data['warnings']:
                 for warning in sprint_data['warnings']:
                     print(f"  ⚠️  {warning}")
+            print()
+
+        # Carry-over summary
+        carry_overs = plan_data.get('carry_overs', [])
+        if carry_overs:
+            min_co = args.carry_over_sprints
+            print("🔄 CHRONIC CARRY-OVERS")
+            print("-" * 40)
+            print(f"   {len(carry_overs)} item(s) stuck in {min_co}+ sprints:")
+            for item in carry_overs[:10]:
+                print(f"   - {item['key']}: {item['sprint_count']} sprints | {item['status']} | {item['summary'][:50]}")
+            if len(carry_overs) > 10:
+                print(f"   ... and {len(carry_overs) - 10} more (see HTML report)")
             print()
 
         # Generate default filenames if not provided

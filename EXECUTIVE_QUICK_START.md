@@ -252,6 +252,7 @@ JIRA_EMAIL='yourname@redhat.com' JIRA_API_TOKEN='your-token' ./run_sprint_planne
 | `--output-html` | Custom HTML filename | `--output-html my_plan.html` |
 | `--output-json` | Custom JSON filename | `--output-json my_plan.json` |
 | `--sprint-pattern` | Sprint naming pattern (recommended) | `--sprint-pattern "DP Sprint"` |
+| `--carry-over-sprints` | Min sprints to flag carry-overs (default: 3) | `--carry-over-sprints 2` |
 
 **Note:** `--team-id` parameter has been temporarily disabled due to Jira migration changes. Use `--component` for team filtering.
 
@@ -377,9 +378,22 @@ open "$(ls -t *.html | head -1)"
 
 ---
 
-**Last Updated:** March 18, 2026
-**Version:** 2.1 (Critical bug fixes)
+**Last Updated:** March 24, 2026
+**Version:** 2.2 (Carry-over tracking)
 **Status:** Internal Use Only - Security Audit Pending
+
+---
+
+## 🔄 Version 2.2 Updates (March 24, 2026)
+
+**New Feature: Carry-Over Tracking**
+- ✅ **Chronic carry-over detection** - The tool now flags items that have been sitting in 3+ closed sprints without being completed
+- ✅ **Dashboard section** - New "Chronic Carry-Overs" table in the HTML report with color-coded severity
+- ✅ **Actionable warnings** - Recommendations to split, descope, or escalate stuck items
+- ✅ **Tunable threshold** - Use `--carry-over-sprints 2` to adjust sensitivity
+
+**Why This Matters:**
+Items that keep getting carried from sprint to sprint waste planning capacity and signal deeper issues (unclear scope, hidden blockers, wrong estimates). The tool now surfaces these automatically so teams can take action.
 
 ---
 

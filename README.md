@@ -75,6 +75,12 @@ For now, omit the `--team-id` parameter and rely on the component filter:
 --component "Training Kubeflow"
 ```
 
+### Carry-Over Tracking
+Automatically detects items stuck in 3+ closed sprints that are still not done, and flags them in the console output, HTML dashboard, and recommendations. Tune the threshold with:
+```bash
+--carry-over-sprints 2   # Flag items in 2+ closed sprints (default: 3)
+```
+
 ### What-If Analysis
 Try different scenarios:
 ```bash
@@ -271,9 +277,18 @@ Internal Red Hat use only. Security audit pending before public release.
 
 ---
 
-**Last Updated:** March 18, 2026
-**Version:** 2.1 (Critical bug fixes)
+**Last Updated:** March 24, 2026
+**Version:** 2.2 (Carry-over tracking)
 **Status:** Production Ready for Internal Use
+
+## 🔄 What's New in v2.2 (March 24, 2026)
+
+**New Feature: Carry-Over Tracking**
+- ✅ **Chronic carry-over detection** - Flags items stuck in 3+ closed sprints that are still not done
+- ✅ **HTML dashboard section** - Carry-over table with clickable Jira links, color-coded sprint counts, and assignee info
+- ✅ **Automated recommendations** - HIGH severity for 5+ sprints, MEDIUM for 3-4 sprints
+- ✅ **Configurable threshold** - `--carry-over-sprints N` to tune sensitivity (default: 3)
+- ✅ **Cleanup** - Removed leftover debug scripts
 
 ## 🔄 What's New in v2.1 (March 18, 2026)
 
