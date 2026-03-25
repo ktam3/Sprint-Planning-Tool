@@ -336,7 +336,7 @@ class VelocityCalculator:
         jql = f'{project_filter} AND {component_filter}'
         if team_filter:
             jql += f' AND {team_filter}'
-        jql += ' AND sprint in closedSprints() AND status NOT IN (Done, Closed, Resolved)'
+        jql += ' AND sprint in closedSprints() AND issuetype != Epic AND status NOT IN (Done, Closed, Resolved)'
 
         story_points_fields = ['customfield_10028', 'customfield_10016', 'customfield_10506']
         fields = ['key', 'summary', 'status', 'priority', 'assignee', 'customfield_10020'] + story_points_fields
@@ -408,7 +408,7 @@ class BacklogAnalyzer:
         jql = f'{project_filter} AND {component_filter}'
         if team_filter:
             jql += f' AND {team_filter}'
-        jql += f' AND sprint is EMPTY AND {status_filter}'
+        jql += f' AND sprint is EMPTY AND issuetype != Epic AND {status_filter}'
 
         # Include story points fields for velocity calculation
         fields = ['key', 'summary', 'status', 'priority', 'assignee', 'issuetype',
@@ -650,10 +650,10 @@ class SprintPlanner:
         self.jira = jira_client
         self.analyzer = backlog_analyzer
 
-    def get_current_sprint_number(self, project: str, component: str, sprint_pattern: Optional[str] = None, team_id: Optional[int] = None) -> Tuple[int, str, Optional[str]]:
+    def get_current_sprint_number(self, project: str, component: str, sprint_pattern: Optional[str] = None, team_id: Optional[int] = None) -> Tuple[int, str, Optional[str], Optional[int]]:
         """
-        Get the current sprint number, name, and end date for the team
-        Returns: (sprint_number, sprint_name_pattern, end_date_string)
+        Get the current sprint number, name, end date, and sprint length for the team
+        Returns: (sprint_number, sprint_name_pattern, end_date_string, sprint_length_weeks)
         """
         # Get issues in open sprints
         project_filter = build_project_filter(project)
@@ -667,7 +667,7 @@ class SprintPlanner:
         issues = self.jira.search_issues(jql, fields=['key', 'customfield_10020'], max_results=10)
 
         if not issues:
-            return 0, sprint_pattern or "Sprint", None
+            return 0, sprint_pattern or "Sprint", None, None
 
         # Extract sprint names from issues
         for issue in issues:
@@ -685,10 +685,22 @@ class SprintPlanner:
                     if sprint_info and sprint_info.get('state', '').upper() in ['ACTIVE', 'FUTURE']:
                         sprint_name = sprint_info.get('name', '')
                         end_date = sprint_info.get('endDate', '')
+                        start_date = sprint_info.get('startDate', '')
 
                         # If sprint_pattern is provided, only consider sprints that match the pattern
                         if sprint_pattern and sprint_pattern not in sprint_name:
                             continue
+
+                        # Calculate sprint length in weeks from start/end dates
+                        sprint_length_weeks = None
+                        if start_date and end_date:
+                            try:
+                                start_dt = datetime.strptime(start_date[:10], '%Y-%m-%d')
+                                end_dt = datetime.strptime(end_date[:10], '%Y-%m-%d')
+                                days = (end_dt - start_dt).days
+                                sprint_length_weeks = round(days / 7)
+                            except (ValueError, TypeError):
+                                pass
 
                         # Extract sprint number using regex
                         import re
@@ -698,10 +710,10 @@ class SprintPlanner:
                             sprint_num = int(match.group(1))
                             # Extract the pattern (everything before the number)
                             pattern = sprint_name[:match.start()].strip()
-                            return sprint_num, pattern, end_date
+                            return sprint_num, pattern, end_date, sprint_length_weeks
 
         # Fallback to pattern if provided
-        return 0, sprint_pattern or "Sprint", None
+        return 0, sprint_pattern or "Sprint", None, None
 
     def get_existing_sprint_items(self, project: str, component: str,
                                   sprint_numbers: List[int],
@@ -726,7 +738,7 @@ class SprintPlanner:
         jql = f'{project_filter} AND {component_filter}'
         if team_filter:
             jql += f' AND {team_filter}'
-        jql += ' AND (sprint in futureSprints() OR sprint in openSprints())'
+        jql += ' AND issuetype != Epic AND (sprint in futureSprints() OR sprint in openSprints())'
 
         fields = ['key', 'summary', 'status', 'priority', 'assignee', 'customfield_10020']
         issues = self.jira.search_issues(jql, fields=fields, max_results=1000)
@@ -1894,15 +1906,19 @@ def main():
 
         # Get current sprint number
         print("🔢 Detecting current sprint...")
-        current_sprint_num, detected_pattern, current_sprint_end_date = sprint_planner.get_current_sprint_number(
+        current_sprint_num, detected_pattern, current_sprint_end_date, detected_sprint_length = sprint_planner.get_current_sprint_number(
             args.project,
             args.component,
             args.sprint_pattern,
             args.team_id
         )
 
+        # Use detected sprint length if available, otherwise fall back to CLI arg
+        sprint_length = detected_sprint_length if detected_sprint_length else args.sprint_length
+
         if current_sprint_num > 0:
             print(f"   Current Sprint: {detected_pattern} {current_sprint_num}")
+            print(f"   Sprint Length: {sprint_length} weeks" + (" (auto-detected)" if detected_sprint_length else " (default)"))
             print(f"   Planning for: {detected_pattern} {current_sprint_num + 1} - {current_sprint_num + args.num_sprints}")
         else:
             print(f"   No active sprint detected - using default numbering")
@@ -1915,7 +1931,7 @@ def main():
             backlog=backlog,
             velocity=velocity,
             num_sprints=args.num_sprints,
-            sprint_length_weeks=args.sprint_length,
+            sprint_length_weeks=sprint_length,
             risk_data=risk_data,
             current_sprint_num=current_sprint_num,
             sprint_name_pattern=detected_pattern,
