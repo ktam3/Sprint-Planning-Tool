@@ -122,9 +122,24 @@ python3 sprint_planning_tool.py \
 
 ---
 
-## 🛠️ Interactive Mode (Easiest)
+## 🌐 Web Dashboard (Easiest)
 
-For a menu-driven experience:
+Launch the interactive Streamlit dashboard:
+```bash
+pip3 install streamlit python-dotenv
+streamlit run streamlit_app.py
+```
+
+Features:
+- No command-line arguments needed — configure everything in the sidebar
+- Tabbed interface: Sprint Plan, Timeline, and Help
+- Clickable Jira links, capacity bars, and downloadable reports
+- Auto-detects sprint length from Jira
+- Credentials load automatically from a `.env` file (no export needed)
+
+## 🛠️ Interactive CLI Mode
+
+For a terminal menu-driven experience:
 ```bash
 ./run_sprint_planner.sh
 ```
@@ -154,6 +169,7 @@ python3 sprint_planning_tool.py --project YOUR_PROJECT --component "Your Compone
 **Requirements:**
 - Python 3.x
 - Jira API token
+- `streamlit` and `python-dotenv` (for web dashboard only)
 - Network access to Jira instance
 
 ---
@@ -277,13 +293,23 @@ Internal Red Hat use only. Security audit pending before public release.
 
 ---
 
-**Last Updated:** March 24, 2026
-**Version:** 2.2 (Carry-over tracking)
+**Last Updated:** March 26, 2026
+**Version:** 2.3 (Streamlit web dashboard)
 **Status:** Production Ready for Internal Use
+
+## 🔄 What's New in v2.3 (March 26, 2026)
+
+**Streamlit Web Dashboard**
+- ✅ **Interactive web UI** - `streamlit run streamlit_app.py` for a browser-based experience
+- ✅ **Tabbed interface** - Sprint Plan, Timeline, and Help tabs
+- ✅ **Auto-detect sprint length** - Calculated from current sprint start/end dates in Jira
+- ✅ **Exclude Epics** - Epic issue types filtered out of all results
+- ✅ **`.env` credential support** - No need to export tokens every session
+- ✅ **Project multiselect** - Checkbox selection for RHOAIENG and RHAIENG
 
 ## 🔄 What's New in v2.2 (March 24, 2026)
 
-**New Feature: Carry-Over Tracking**
+**Carry-Over Tracking**
 - ✅ **Chronic carry-over detection** - Flags items stuck in 3+ closed sprints that are still not done
 - ✅ **HTML dashboard section** - Carry-over table with clickable Jira links, color-coded sprint counts, and assignee info
 - ✅ **Automated recommendations** - HIGH severity for 5+ sprints, MEDIUM for 3-4 sprints
