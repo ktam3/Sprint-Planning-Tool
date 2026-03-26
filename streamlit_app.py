@@ -249,6 +249,7 @@ if "plan_data" in st.session_state:
                         "Key": f"{JIRA_URL}/browse/{i['key']}",
                         "Summary": i["summary"][:80],
                         "Priority": i["priority"],
+                        "Status": i.get("status", ""),
                         "Score": f"{i.get('priority_score', 0):.0f}",
                         "SP": i.get("story_points", 0),
                         "Blocked By": ", ".join(i.get("blocked_by", [])) or "-"
